@@ -1,5 +1,7 @@
-﻿.env
+﻿﻿.env
 /node_modules
+/.netlify
+pnpm-debug.log*
 
 *Postman*.json
 
