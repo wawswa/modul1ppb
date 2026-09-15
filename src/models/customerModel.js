@@ -15,6 +15,7 @@ export const CustomerModel = {
     const from = (page - 1) * limit;
     const { data, error, count } = await query.range(from, from + limit - 1);
     if (error) throw error;
+    if (count === null) throw new Error("Supabase did not return a row count");
     return { data, count };
   },
 
@@ -23,6 +24,7 @@ export const CustomerModel = {
       .from("customers")
       .select("*", { count: "exact", head: true });
     if (error) throw error;
+    if (count === null) throw new Error("Supabase did not return a row count");
     return count;
   },
 
