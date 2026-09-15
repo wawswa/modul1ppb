@@ -1,31 +1,48 @@
 ﻿import { supabase } from "../config/supabaseClient.js";
 
+function buildListQuery(name) {
+  const query = supabase
+    .from("customers")
+    .select("*", { count: "exact" })
+    .order("name")
+    .order("id");
+
+  return name ? query.ilike("name", `%${name}%`) : query;
+}
+
+function buildCountQuery(name) {
+  const query = supabase
+    .from("customers")
+    .select("*", { count: "exact", head: true });
+
+  return name ? query.ilike("name", `%${name}%`) : query;
+}
+
+async function countCustomers(name) {
+  const { count, error } = await buildCountQuery(name);
+  if (error) throw error;
+  if (count === null) throw new Error("Supabase did not return a row count");
+  return count;
+}
+
 export const CustomerModel = {
   async getAll({ name, page, limit }) {
-    let query = supabase
-      .from("customers")
-      .select("*", { count: "exact" })
-      .order("name")
-      .order("id");
+    const from = (page - 1) * limit;
+    const { data, error, count } = await buildListQuery(name).range(from, from + limit - 1);
 
-    if (name) {
-      query = query.ilike("name", `%${name}%`);
+    // PostgREST membalas 416 (PGRST103) ketika offset sudah melewati baris terakhir.
+    // Halaman di luar jangkauan bukan error: kembalikan daftar kosong beserta totalnya.
+    if (error?.code === "PGRST103") {
+      return { data: [], count: await countCustomers(name) };
     }
 
-    const from = (page - 1) * limit;
-    const { data, error, count } = await query.range(from, from + limit - 1);
     if (error) throw error;
     if (count === null) throw new Error("Supabase did not return a row count");
     return { data, count };
   },
 
   async countAll() {
-    const { count, error } = await supabase
-      .from("customers")
-      .select("*", { count: "exact", head: true });
-    if (error) throw error;
-    if (count === null) throw new Error("Supabase did not return a row count");
-    return count;
+    return countCustomers();
   },
 
   async getById(id) {
